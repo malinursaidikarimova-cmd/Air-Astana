@@ -1,0 +1,9 @@
+{
+  "name": "air-astana-financial-analysis",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Air Astana financial statement analysis web app",
+  "scripts": {
+    "start": "python -m http.server 8000"
+  }
+}

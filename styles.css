@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Air Astana Financial Input</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Air Astana</p>
+      <h1>Air Astana Input</h1>
+      <p class="subtitle">Air Astana · данные за 2021-2025 годы · KZT, тыс. тенге</p>
+    </div>
+    <div class="upload-panel">
+      <label for="csvInput">Загрузить CSV</label>
+      <input id="csvInput" type="file" accept=".csv">
+      <button id="resetData" type="button">Вернуть input</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="input" class="panel active-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Блок 1</p>
+          <h2>Input / Отчетность</h2>
+        </div>
+        <p id="periodBadge" class="badge"></p>
+      </div>
+
+      <div class="input-files">
+        <a href="../data/инпутАФО.xlsx" download>Excel input</a>
+        <a href="../data/air_astana_sample.csv" download>Sample CSV</a>
+        <a href="../data/sources.md" download>Sources</a>
+        <a href="../data/input_guide.md" download>Input guide</a>
+      </div>
+
+      <div id="summaryCards" class="metric-grid"></div>
+
+      <div class="split">
+        <div>
+          <h3>Нормализованные строки отчетности</h3>
+          <div class="table-wrap">
+            <table id="statementTable"></table>
+          </div>
+        </div>
+        <aside class="side-note">
+          <h3>Проверка input</h3>
+          <ul id="inputChecks"></ul>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
