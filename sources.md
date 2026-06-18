@@ -1,66 +1,36 @@
-# Input guide
+# Источники данных
 
-Этот файл описывает, как устроен input для веб-приложения.
+Проект использует финансовую отчетность Air Astana за 2021-2025 годы.
 
-## Главный Excel input
+Валюта и масштаб input-файла: KZT, тыс. тенге.
 
-Файл: `data/инпутАФО.xlsx`
+## Основные файлы input
 
-Он содержит листы:
+- `data/инпутАФО.xlsx` - основной Excel input workbook.
+- `data/air_astana_sample.csv` - CSV input для веб-приложения.
 
-- `Баланс`
-- `ОПиУ`
-- `ОДДС`
-- `Коэффициенты`
-- `Инпут`
-- `Проверки`
-- `Источники`
+## Листы Excel input
 
-## CSV input для приложения
+- `Баланс` - отчет о финансовом положении.
+- `ОПиУ` - отчет о прибыли или убытке.
+- `ОДДС` - отчет о движении денежных средств.
+- `Коэффициенты` - расчет финансовых коэффициентов.
+- `Инпут` - нормализованная таблица для приложения.
+- `Проверки` - контрольные проверки input.
+- `Источники` - карта источников.
 
-Файл: `data/air_astana_sample.csv`
+## Использованные источники
 
-Именно CSV используется веб-приложением как машинно-читаемый input. Он создан на основе листа `Инпут` из Excel.
+- Air Astana financial statements for 2021.
+- Air Astana financial statements for 2022.
+- Air Astana consolidated financial statements 2023: https://ir.airastana.com/media/8dc44aa8f61bda7/aa-fs-2023-conso-usd.pdf
+- Air Astana consolidated financial statements 2024: https://ir.airastana.com/media/8dd62d1cc357574/fs-aa-usd-2024-conso-eng-final-signed.pdf
+- Air Astana consolidated financial statements 2025: https://ir.airastana.com/media/8de832fbd001d0b/fs-aa-usd-2025-eng-final-formatted-signed-final.pdf
+- Air Astana Investor Relations: https://ir.airastana.com/
 
-## Обязательные поля
+## Ограничения источников
 
-- `year`
-- `company`
-- `currency`
-- `scale`
-- `source`
-- `total_revenue`
-- `operating_profit`
-- `net_income`
-- `assets`
-- `liabilities`
-- `equity`
-- `cash`
-- `receivables`
-- `inventories`
-- `ppe`
-- `intangibles`
-- `loans`
-- `lease_liabilities`
-- `cfo`
-- `cfi`
-- `cff`
-- `capex`
-
-## Проверки input
-
-- Валюта одинаковая по всем годам: KZT.
-- Масштаб одинаковый по всем годам: тыс. тенге.
-- Баланс сходится: `assets = liabilities + equity`.
-- CFO, CFI, CFF и Capex берутся из ОДДС.
-- FCF рассчитывается как `CFO - Capex`.
-- CFO / чистая прибыль рассчитывается как `CFO / net_income`.
-
-## Как обновлять данные
-
-1. Обновить листы `Баланс`, `ОПиУ`, `ОДДС`.
-2. Проверить, что лист `Инпут` подтягивает данные формулами.
-3. Проверить лист `Проверки`.
-4. Экспортировать лист `Инпут` в CSV.
-5. Заменить `data/air_astana_sample.csv`.
-6. Проверить приложение в браузере.
+- В отчетности авиакомпании нет классической строки gross profit, поэтому анализ использует операционную маржу и отраслевые cost ratios.
+- Debt proxy считается как loans + lease liabilities, потому что IFRS 16 lease liabilities являются важной debt-like нагрузкой для авиакомпании.
+- Capex взят из ОДДС как приобретение основных средств.
+- Для сопоставимости 2021-2025 данные приведены к единой валюте и масштабу в Excel input.
