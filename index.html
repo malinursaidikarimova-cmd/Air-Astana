@@ -1,59 +1,92 @@
 <!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Air Astana Financial Input</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">Air Astana</p>
-      <h1>Air Astana Input</h1>
-      <p class="subtitle">Air Astana · данные за 2021-2025 годы · KZT, тыс. тенге</p>
-    </div>
-    <div class="upload-panel">
-      <label for="csvInput">Загрузить CSV</label>
-      <input id="csvInput" type="file" accept=".csv">
-      <button id="resetData" type="button">Вернуть input</button>
-    </div>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Air Astana Financial Analysis</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Air Astana Financial Analysis</h1>
+        <p>Отчетность -> Качество -> Анализ -> Прогноз -> Вывод</p>
+      </div>
+      <div class="actions">
+        <label class="file-button">
+          <input id="fileInput" type="file" accept=".csv" />
+          Загрузить CSV
+        </label>
+        <button id="sampleButton" type="button">Открыть sample</button>
+      </div>
+    </header>
 
-  <main>
-    <section id="input" class="panel active-panel">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Блок 1</p>
-          <h2>Input / Отчетность</h2>
+    <main>
+      <section class="notice">
+        <strong>Для GitHub Pages:</strong> приложение работает как статический сайт и читает CSV.
+        Полный Excel-input лежит рядом в файле <code>air_astana_input_complete.xlsx</code>.
+      </section>
+
+      <section id="meta" class="meta-grid"></section>
+
+      <nav class="tabs">
+        <button class="tab active" data-tab="input">1. Отчетность</button>
+        <button class="tab" data-tab="quality">2. Качество</button>
+        <button class="tab" data-tab="analysis">3. Анализ</button>
+        <button class="tab" data-tab="forecast">4. Прогноз</button>
+        <button class="tab" data-tab="summary">5. Вывод</button>
+      </nav>
+
+      <section id="status" class="status visible">Загружаю sample...</section>
+
+      <section id="input" class="panel active">
+        <div class="section-title">
+          <h2>Отчетность / Input</h2>
+          <span>Нормализованные данные за 2021-2025</span>
         </div>
-        <p id="periodBadge" class="badge"></p>
-      </div>
+        <div id="statementCards" class="metric-grid"></div>
+        <canvas id="revenueChart" width="1100" height="260"></canvas>
+        <div class="table-wrap"><table id="statementsTable"></table></div>
+      </section>
 
-      <div class="input-files">
-        <a href="инпутАФО.xlsx" download>Excel input</a>
-        <a href="air_astana_sample.csv" download>Sample CSV</a>
-        <a href="sources.md" download>Sources</a>
-        <a href="input_guide.md" download>Input guide</a>
-      </div>
-
-      <div id="summaryCards" class="metric-grid"></div>
-
-      <div class="split">
-        <div>
-          <h3>Нормализованные строки отчетности</h3>
-          <div class="table-wrap">
-            <table id="statementTable"></table>
-          </div>
+      <section id="quality" class="panel">
+        <div class="section-title">
+          <h2>Quality Scorecard</h2>
+          <span>Проверка качества перед анализом</span>
         </div>
-        <aside class="side-note">
-          <h3>Проверка input</h3>
-          <ul id="inputChecks"></ul>
-        </aside>
-      </div>
-    </section>
-  </main>
+        <div id="qualityGrid" class="quality-grid"></div>
+      </section>
 
-  <script src="app.js"></script>
-</body>
+      <section id="analysis" class="panel">
+        <div class="section-title">
+          <h2>Финансовый анализ</h2>
+          <span>Коэффициенты и отраслевые метрики</span>
+        </div>
+        <div class="chart-row">
+          <canvas id="marginChart" width="540" height="250"></canvas>
+          <canvas id="debtChart" width="540" height="250"></canvas>
+        </div>
+        <div class="table-wrap"><table id="ratiosTable"></table></div>
+      </section>
+
+      <section id="forecast" class="panel">
+        <div class="section-title">
+          <h2>Прогноз</h2>
+          <span>3 года: Base case и Stress case</span>
+        </div>
+        <div id="assumptions" class="assumptions"></div>
+        <div class="table-wrap"><table id="forecastTable"></table></div>
+      </section>
+
+      <section id="summary" class="panel">
+        <div class="section-title">
+          <h2>Вывод</h2>
+          <span>Фактический аналитический вывод</span>
+        </div>
+        <ul id="summaryList" class="summary-list"></ul>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
 </html>
