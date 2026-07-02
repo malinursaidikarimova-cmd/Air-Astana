@@ -101,6 +101,7 @@ main { width: min(1280px, calc(100vw - 32px)); margin: 22px auto 48px; }
 }
 .section-title h2 { font-size: 19px; }
 .section-title span { color: var(--muted); font-size: 13px; }
+.sub-section { margin-top: 22px; }
 canvas {
   width: 100%;
   max-width: 100%;
@@ -111,10 +112,30 @@ canvas {
 }
 .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
-table { width: 100%; border-collapse: collapse; min-width: 900px; background: #fff; }
+table { width: 100%; border-collapse: collapse; min-width: 2400px; background: #fff; }
 th, td { padding: 10px 11px; border-bottom: 1px solid var(--line); text-align: right; font-size: 13px; }
 th:first-child, td:first-child { text-align: left; }
 th { position: sticky; top: 0; background: #edf2f8; color: #243447; font-weight: 650; }
+#qualityChecksTable {
+  min-width: 1100px;
+}
+#qualityChecksTable th,
+#qualityChecksTable td {
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  line-height: 1.45;
+}
+.analysis-wrap table {
+  min-width: 1100px;
+}
+.analysis-wrap th,
+.analysis-wrap td {
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  line-height: 1.45;
+}
 .quality-card.green { background: var(--soft-green); border-color: #badfca; }
 .quality-card.yellow { background: var(--soft-yellow); border-color: #efd08b; }
 .quality-card.red { background: #ffe9e7; border-color: #f2aaa4; }

@@ -55,6 +55,11 @@
           <span>Проверка качества перед анализом</span>
         </div>
         <div id="qualityGrid" class="quality-grid"></div>
+        <div class="section-title sub-section">
+          <h2>Минимальные проверки</h2>
+          <span>Детализация по требованиям ТЗ</span>
+        </div>
+        <div class="table-wrap"><table id="qualityChecksTable"></table></div>
       </section>
 
       <section id="analysis" class="panel">
@@ -66,7 +71,31 @@
           <canvas id="marginChart" width="540" height="250"></canvas>
           <canvas id="debtChart" width="540" height="250"></canvas>
         </div>
+        <div class="section-title sub-section">
+          <h2>Анализ ОПиУ</h2>
+          <span>Динамика и объяснение ключевых строк</span>
+        </div>
+        <div class="table-wrap analysis-wrap"><table id="incomeAnalysisTable"></table></div>
+        <div class="section-title sub-section">
+          <h2>Анализ баланса</h2>
+          <span>Активы, обязательства и капитал</span>
+        </div>
+        <div class="table-wrap analysis-wrap"><table id="balanceAnalysisTable"></table></div>
+        <div class="section-title sub-section">
+          <h2>Анализ денежных потоков</h2>
+          <span>CFO, CFI, CFF, FCF и выплаты</span>
+        </div>
+        <div class="table-wrap analysis-wrap"><table id="cashflowAnalysisTable"></table></div>
+        <div class="section-title sub-section">
+          <h2>Коэффициенты</h2>
+          <span>Общий минимум по ТЗ</span>
+        </div>
         <div class="table-wrap"><table id="ratiosTable"></table></div>
+        <div class="section-title sub-section">
+          <h2>Отраслевые метрики Air Astana</h2>
+          <span>Специфика авиакомпании по ТЗ</span>
+        </div>
+        <div class="table-wrap"><table id="industryMetricsTable"></table></div>
       </section>
 
       <section id="forecast" class="panel">
@@ -75,6 +104,7 @@
           <span>3 года: Base case и Stress case</span>
         </div>
         <div id="assumptions" class="assumptions"></div>
+        <div class="table-wrap analysis-wrap"><table id="assumptionsTable"></table></div>
         <div class="table-wrap"><table id="forecastTable"></table></div>
       </section>
 

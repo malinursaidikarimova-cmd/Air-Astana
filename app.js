@@ -52,6 +52,11 @@ const csvMap = {
   disclosure_notes_available: "disclosure_notes_available",
   mda_available: "mda_available",
   major_risks_disclosed: "major_risks_disclosed",
+  current_ratio: "current_ratio",
+  quick_ratio: "quick_ratio",
+  cash_ratio: "cash_ratio",
+  interest_coverage: "interest_coverage",
+  net_debt: "net_debt",
 };
 
 function showStatus(message, isError = false) {
@@ -153,7 +158,7 @@ function normalize(rows) {
         direct_costs: directCosts,
         gross_profit: revenue + directCosts,
         debt,
-        net_debt: debt - n(row, "cash"),
+        net_debt: row.net_debt ?? debt - n(row, "cash"),
         fcf: n(row, "cfo") - n(row, "capex"),
       };
     })
@@ -218,6 +223,109 @@ function buildQuality(rows) {
   ];
 }
 
+function buildQualityChecks(rows) {
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  const periods = rows.length - 1;
+  const revenueGrowth = div(n(last, "revenue") - n(first, "revenue"), n(first, "revenue"));
+  const revenueCagr = cagr(n(first, "revenue"), n(last, "revenue"), periods);
+  const receivablesGrowth = div(n(last, "receivables") - n(first, "receivables"), n(first, "receivables"));
+  const receivablesToRevenue = div(n(last, "receivables"), n(last, "revenue"));
+  const dso = (div(n(last, "receivables"), n(last, "revenue")) || 0) * 365;
+  const netIncomeGrowth = div(n(last, "net_income") - n(first, "net_income"), n(first, "net_income"));
+  const cfoToNetIncome = div(n(last, "cfo"), n(last, "net_income"));
+  const profitCashGap = n(last, "cfo") - n(last, "net_income");
+  const assetsGrowth = div(n(last, "assets") - n(first, "assets"), n(first, "assets"));
+  const inventoriesToAssets = div(n(last, "inventories"), n(last, "assets"));
+  const ppeToAssets = div(n(last, "ppe"), n(last, "assets"));
+  const intangiblesToAssets = div(n(last, "intangibles"), n(last, "assets"));
+  const capexToDep = div(n(last, "capex"), n(last, "depreciation_amortization"));
+  const debtGrowth = div(n(last, "debt") - n(first, "debt"), n(first, "debt"));
+  const leaseToAssets = div(n(last, "lease_liabilities"), n(last, "assets"));
+  const interestCoverage = div(n(last, "operating_profit"), Math.abs(n(last, "finance_costs")));
+  const notesAvailable = last.disclosure_notes_available === "yes" ? "есть" : "требует проверки";
+  const mdaAvailable = last.mda_available === "yes" ? "есть" : "требует проверки";
+  const risksAvailable = last.major_risks_disclosed === "yes" ? "раскрыты" : "требует проверки";
+
+  return [
+    {
+      zone: "1. Качество выручки",
+      check: "Рост выручки и рост дебиторской задолженности",
+      result: `Выручка выросла на ${fmtPct(revenueGrowth)}; CAGR выручки ${fmtPct(revenueCagr)}. Дебиторская задолженность выросла на ${fmtPct(receivablesGrowth)}.`,
+    },
+    {
+      zone: "1. Качество выручки",
+      check: "Дебиторская задолженность vs выручка; DSO",
+      result: `Дебиторская задолженность / выручка 2025 = ${fmtPct(receivablesToRevenue)}; DSO 2025 = ${fmtRatio(dso)} дней.`,
+    },
+    {
+      zone: "1. Качество выручки",
+      check: "Наличие объяснений в отчетности",
+      result: `Источник указан в input; объяснения нужно подтверждать через notes/MD&A годового отчета. Статус notes: ${notesAvailable}.`,
+    },
+    {
+      zone: "2. Качество прибыли",
+      check: "Динамика чистой прибыли и повторяемость прибыли",
+      result: `Чистая прибыль изменилась с ${fmtNumber(first.net_income)} до ${fmtNumber(last.net_income)} тыс. тенге; изменение ${fmtPct(netIncomeGrowth)}. Резкое снижение 2025 требует объяснения.`,
+    },
+    {
+      zone: "2. Качество прибыли",
+      check: "Наличие разовых доходов / расходов",
+      result: `В input есть sale-and-leaseback gain, прочие доходы и курсовая разница. Эти статьи используются как зона проверки разовых эффектов.`,
+    },
+    {
+      zone: "2. Качество прибыли",
+      check: "CFO / net income; расхождение прибыли и денежного потока",
+      result: `CFO / net income 2025 = ${fmtRatio(cfoToNetIncome)}. CFO превышает чистую прибыль на ${fmtNumber(profitCashGap)} тыс. тенге.`,
+    },
+    {
+      zone: "3. Качество активов",
+      check: "Рост активов; запасы; основные средства",
+      result: `Активы выросли на ${fmtPct(assetsGrowth)}. Запасы / активы 2025 = ${fmtPct(inventoriesToAssets)}; PPE / активы = ${fmtPct(ppeToAssets)}.`,
+    },
+    {
+      zone: "3. Качество активов",
+      check: "Нематериальные активы; гудвилл; обесценение",
+      result: `НМА / активы 2025 = ${fmtPct(intangiblesToAssets)}. Гудвилл и обесценение отдельно в CSV не выделены, их нужно смотреть в notes.`,
+    },
+    {
+      zone: "3. Качество активов",
+      check: "Capex и амортизация",
+      result: `Capex 2025 = ${fmtNumber(last.capex)}; амортизация 2025 = ${fmtNumber(last.depreciation_amortization)}; Capex / амортизация = ${fmtRatio(capexToDep)}.`,
+    },
+    {
+      zone: "4. Качество обязательств",
+      check: "Рост долга; краткосрочный и долгосрочный долг",
+      result: `Итого долг вырос на ${fmtPct(debtGrowth)}. В CSV показан общий долг; детализация краткосрочного и долгосрочного долга сохранена в полном Excel input.`,
+    },
+    {
+      zone: "4. Качество обязательств",
+      check: "Lease liabilities; interest coverage",
+      result: `Lease liabilities / активы 2025 = ${fmtPct(leaseToAssets)}. Interest coverage 2025 = ${fmtRatio(interestCoverage)}.`,
+    },
+    {
+      zone: "4. Качество обязательств",
+      check: "Условные обязательства",
+      result: "В CSV условные обязательства не выделены отдельной строкой; для финальной защиты нужно ссылаться на соответствующие notes.",
+    },
+    {
+      zone: "5. Качество раскрытий",
+      check: "Есть ли notes и MD&A",
+      result: `Notes: ${notesAvailable}; MD&A: ${mdaAvailable}. Источник данных указан в input и файле sources.md.`,
+    },
+    {
+      zone: "5. Качество раскрытий",
+      check: "Объясняются ли ключевые изменения и раскрыты ли риски",
+      result: `Существенные риски: ${risksAvailable}. Для защиты нужно показать, где в годовом отчете объясняются изменения выручки, расходов, долга и cash flow.`,
+    },
+    {
+      zone: "5. Качество раскрытий",
+      check: "Какие данные отсутствуют",
+      result: "В CSV не выделены гудвилл, условные обязательства и детализация LT/ST долга; эти пункты отмечены как ограничения и проверяются через полный Excel/notes.",
+    },
+  ];
+}
+
 function buildRatios(rows) {
   return rows.map((row) => {
     const revenue = n(row, "revenue");
@@ -231,10 +339,18 @@ function buildRatios(rows) {
       roe: div(n(row, "net_income"), n(row, "equity")),
       debt_assets: div(n(row, "debt"), assets),
       debt_equity: div(n(row, "debt"), n(row, "equity")),
+      net_debt: n(row, "net_debt"),
+      current_ratio: row.current_ratio ?? null,
+      quick_ratio: row.quick_ratio ?? null,
+      cash_ratio: row.cash_ratio ?? null,
+      interest_coverage: row.interest_coverage ?? div(n(row, "operating_profit"), Math.abs(n(row, "finance_costs"))),
       asset_turnover: div(revenue, assets),
+      receivables_turnover: div(revenue, n(row, "receivables")),
+      inventory_turnover: div(revenue, n(row, "inventories")),
       dso: (div(n(row, "receivables"), revenue) || 0) * 365,
       dio: (div(n(row, "inventories"), Math.abs(n(row, "direct_costs"))) || 0) * 365,
       cfo_net_income: div(n(row, "cfo"), n(row, "net_income")),
+      fcf: n(row, "fcf"),
       fcf_margin: div(n(row, "fcf"), revenue),
       cfo_capex: div(n(row, "cfo"), n(row, "capex")),
       fuel_revenue: div(Math.abs(n(row, "fuel_cost")), revenue),
@@ -242,17 +358,161 @@ function buildRatios(rows) {
       opex_revenue: div(Math.abs(n(row, "operating_expenses")), revenue),
       passenger_share: div(n(row, "passenger_revenue"), revenue),
       capex_revenue: div(n(row, "capex"), revenue),
+      ppe_assets: div(n(row, "ppe"), assets),
     };
   });
+}
+
+function buildDirectionRows(rows) {
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  const changeText = (key) => `${fmtNumber(first[key])} -> ${fmtNumber(last[key])}; изменение ${fmtPct(div(n(last, key) - n(first, key), Math.abs(n(first, key))))}`;
+  const positiveCostChange = (key) => `${fmtNumber(first[key])} -> ${fmtNumber(last[key])}; изменение ${fmtPct(div(Math.abs(n(last, key)) - Math.abs(n(first, key)), Math.abs(n(first, key))))}`;
+
+  return {
+    income: [
+      {
+        item: "Выручка",
+        dynamics: changeText("revenue"),
+        explanation: "Рост отражает расширение операционной деятельности и восстановление спроса на авиаперевозки.",
+      },
+      {
+        item: "Себестоимость / прямые расходы",
+        dynamics: positiveCostChange("direct_costs"),
+        explanation: "Для Air Astana себестоимость рассчитана через топливо, персонал/экипаж, техническое обслуживание, аэропортовое обслуживание и обслуживание пассажиров.",
+      },
+      {
+        item: "Валовая прибыль",
+        dynamics: changeText("gross_profit"),
+        explanation: "Расчетная валовая прибыль растет вместе с выручкой, но зависит от давления топлива и операционных расходов.",
+      },
+      {
+        item: "Операционные расходы",
+        dynamics: positiveCostChange("operating_expenses"),
+        explanation: "Рост расходов связан с масштабом операций, топливом, персоналом, обслуживанием и аэропортовыми расходами.",
+      },
+      {
+        item: "Операционная прибыль",
+        dynamics: changeText("operating_profit"),
+        explanation: "Операционная прибыль показывает результат основной деятельности до финансовых расходов и налогов.",
+      },
+      {
+        item: "Финансовые доходы / расходы",
+        dynamics: `Доходы: ${fmtNumber(first.finance_income)} -> ${fmtNumber(last.finance_income)}; расходы: ${fmtNumber(first.finance_costs)} -> ${fmtNumber(last.finance_costs)}.`,
+        explanation: "Финансовые расходы важны из-за долговой и lease-нагрузки авиакомпании.",
+      },
+      {
+        item: "Налог",
+        dynamics: changeText("tax"),
+        explanation: "Налог влияет на переход от прибыли до налогообложения к чистой прибыли.",
+      },
+      {
+        item: "Чистая прибыль",
+        dynamics: changeText("net_income"),
+        explanation: "Чистая прибыль в 2025 ниже уровня 2021, поэтому важно объяснять влияние расходов, финансовых расходов и курсовых эффектов.",
+      },
+    ],
+    balance: [
+      {
+        item: "Активы",
+        dynamics: changeText("assets"),
+        explanation: "Рост активов показывает увеличение масштаба компании и базы для операционной деятельности.",
+      },
+      {
+        item: "Денежные средства",
+        dynamics: changeText("cash"),
+        explanation: "Денежные средства важны для оценки ликвидности и устойчивости к стресс-сценарию.",
+      },
+      {
+        item: "Дебиторская задолженность",
+        dynamics: changeText("receivables"),
+        explanation: "Дебиторка сопоставляется с выручкой и DSO для оценки качества выручки.",
+      },
+      {
+        item: "Запасы",
+        dynamics: changeText("inventories"),
+        explanation: "Запасы применимы для Air Astana и проверяются как часть качества активов.",
+      },
+      {
+        item: "Основные средства",
+        dynamics: changeText("ppe"),
+        explanation: "PPE отражает fleet-related assets и инфраструктурную базу авиакомпании.",
+      },
+      {
+        item: "Нематериальные активы",
+        dynamics: changeText("intangibles"),
+        explanation: "НМА занимают небольшую долю активов, но включены в проверку качества активов.",
+      },
+      {
+        item: "Обязательства",
+        dynamics: changeText("liabilities"),
+        explanation: "Рост обязательств сопоставляется с активами и капиталом.",
+      },
+      {
+        item: "Займы и кредиты",
+        dynamics: changeText("loans"),
+        explanation: "Займы отдельно выделены, но для Air Astana также важны lease liabilities.",
+      },
+      {
+        item: "Капитал",
+        dynamics: changeText("equity"),
+        explanation: "Капитал показывает собственную базу финансирования и влияет на debt/equity.",
+      },
+    ],
+    cashflow: [
+      {
+        item: "CFO",
+        dynamics: changeText("cfo"),
+        explanation: "Операционный денежный поток показывает, поддержана ли прибыль денежными поступлениями.",
+      },
+      {
+        item: "CFI",
+        dynamics: changeText("cfi"),
+        explanation: "Инвестиционный поток связан с capex и размещением/погашением депозитов.",
+      },
+      {
+        item: "CFF",
+        dynamics: changeText("cff"),
+        explanation: "Финансовый поток отражает выплаты по аренде, займы, выпуск акций и дивиденды.",
+      },
+      {
+        item: "FCF",
+        dynamics: changeText("fcf"),
+        explanation: "Free cash flow рассчитан как CFO - Capex и показывает денежный остаток после инвестиций.",
+      },
+      {
+        item: "CFO / net income",
+        dynamics: `${fmtRatio(div(first.cfo, first.net_income))} -> ${fmtRatio(div(last.cfo, last.net_income))}`,
+        explanation: "Показатель показывает, насколько чистая прибыль подтверждается операционным денежным потоком.",
+      },
+      {
+        item: "CFO / capex",
+        dynamics: `${fmtRatio(div(first.cfo, first.capex))} -> ${fmtRatio(div(last.cfo, last.capex))}`,
+        explanation: "Показывает, покрывает ли операционный денежный поток капитальные вложения.",
+      },
+      {
+        item: "Дивиденды",
+        dynamics: changeText("dividends_paid"),
+        explanation: "Дивиденды включены, потому что они влияют на денежный поток и капитал.",
+      },
+      {
+        item: "Заимствования",
+        dynamics: `Займы: ${fmtNumber(first.loans)} -> ${fmtNumber(last.loans)}; долг всего: ${fmtNumber(first.debt)} -> ${fmtNumber(last.debt)}.`,
+        explanation: "Для авиакомпании важно смотреть не только займы, но и lease liabilities в составе долга.",
+      },
+    ],
+  };
 }
 
 function buildForecast(rows) {
   const last = rows[rows.length - 1];
   const histGrowth = cagr(n(rows[0], "revenue"), n(last, "revenue"), rows.length - 1) || 0.08;
+  const histDebtGrowth = cagr(n(rows[0], "debt"), n(last, "debt"), rows.length - 1) || 0.08;
   const opMargin = div(n(last, "operating_profit"), n(last, "revenue")) || 0.06;
   const netMargin = div(n(last, "net_income"), n(last, "revenue")) || 0.01;
   const cfoMargin = div(n(last, "cfo"), n(last, "revenue")) || 0.12;
   const fcfMargin = div(n(last, "fcf"), n(last, "revenue")) || 0.08;
+  const capexRevenue = div(n(last, "capex"), n(last, "revenue")) || 0.04;
   const assumptions = {
     "Base case": {
       revenue_growth: Math.min(Math.max(histGrowth * 0.55, 0.06), 0.1),
@@ -260,6 +520,7 @@ function buildForecast(rows) {
       net_margin: Math.max(netMargin, 0.015),
       asset_growth: 0.05,
       debt_growth: 0.07,
+      capex_revenue: Math.max(capexRevenue, 0.04),
       cfo_margin: Math.max(cfoMargin, 0.12),
       fcf_margin: Math.max(fcfMargin, 0.08),
     },
@@ -269,10 +530,62 @@ function buildForecast(rows) {
       net_margin: Math.max(netMargin - 0.015, 0.003),
       asset_growth: 0.02,
       debt_growth: 0.12,
+      capex_revenue: Math.max(capexRevenue - 0.01, 0.03),
       cfo_margin: Math.max(cfoMargin - 0.04, 0.07),
       fcf_margin: Math.max(fcfMargin - 0.04, 0.02),
     },
   };
+  const assumptionRows = [
+    {
+      metric: "Рост выручки",
+      historical: fmtPct(histGrowth),
+      base: fmtPct(assumptions["Base case"].revenue_growth),
+      stress: fmtPct(assumptions["Stress case"].revenue_growth),
+      rationale: "Base case предполагает умеренное продолжение тренда; stress case учитывает замедление рынка и спроса.",
+    },
+    {
+      metric: "Операционная маржа",
+      historical: fmtPct(opMargin),
+      base: fmtPct(assumptions["Base case"].operating_margin),
+      stress: fmtPct(assumptions["Stress case"].operating_margin),
+      rationale: "В стресс-сценарии маржа ниже из-за давления топлива, персонала, обслуживания и аэропортовых расходов.",
+    },
+    {
+      metric: "Чистая маржа",
+      historical: fmtPct(netMargin),
+      base: fmtPct(assumptions["Base case"].net_margin),
+      stress: fmtPct(assumptions["Stress case"].net_margin),
+      rationale: "Чистая маржа чувствительна к финансовым расходам, курсовым эффектам и налогам.",
+    },
+    {
+      metric: "Capex / revenue",
+      historical: fmtPct(capexRevenue),
+      base: fmtPct(assumptions["Base case"].capex_revenue),
+      stress: fmtPct(assumptions["Stress case"].capex_revenue),
+      rationale: "Base case сохраняет поддерживающие инвестиции; stress case предполагает более осторожный capex.",
+    },
+    {
+      metric: "Debt growth",
+      historical: fmtPct(histDebtGrowth),
+      base: fmtPct(assumptions["Base case"].debt_growth),
+      stress: fmtPct(assumptions["Stress case"].debt_growth),
+      rationale: "В stress case долг растет быстрее из-за риска финансирования, lease liabilities и давления на cash flow.",
+    },
+    {
+      metric: "CFO margin",
+      historical: fmtPct(cfoMargin),
+      base: fmtPct(assumptions["Base case"].cfo_margin),
+      stress: fmtPct(assumptions["Stress case"].cfo_margin),
+      rationale: "CFO margin показывает, какую часть выручки компания конвертирует в операционный денежный поток.",
+    },
+    {
+      metric: "FCF margin",
+      historical: fmtPct(fcfMargin),
+      base: fmtPct(assumptions["Base case"].fcf_margin),
+      stress: fmtPct(assumptions["Stress case"].fcf_margin),
+      rationale: "FCF margin ухудшается в stress case из-за давления на CFO и потребности в инвестициях.",
+    },
+  ];
   const scenarios = [];
   Object.entries(assumptions).forEach(([scenario, a]) => {
     let revenue = n(last, "revenue");
@@ -302,12 +615,14 @@ function buildForecast(rows) {
       });
     }
   });
-  return { assumptions, scenarios };
+  return { assumptions, assumptionRows, scenarios };
 }
 
 function analyze(rows) {
   const quality = buildQuality(rows);
+  const qualityChecks = buildQualityChecks(rows);
   const ratios = buildRatios(rows);
+  const directionRows = buildDirectionRows(rows);
   const forecast = buildForecast(rows);
   const first = rows[0];
   const last = rows[rows.length - 1];
@@ -319,7 +634,9 @@ function analyze(rows) {
     scale: last.scale || "тыс. тенге",
     rows,
     quality,
+    qualityChecks,
     ratios,
+    directionRows,
     forecast,
     summary: [
       `За 5 лет выручка Air Astana выросла на ${fmtPct(div(last.revenue - first.revenue, first.revenue))}: с ${fmtNumber(first.revenue)} до ${fmtNumber(last.revenue)} тыс. тенге.`,
@@ -411,14 +728,28 @@ function render(a) {
   renderTable("#statementsTable", [
     { key: "year", label: "Год" },
     { key: "revenue", label: "Выручка", format: fmtNumber },
-    { key: "gross_profit", label: "Расчетная валовая прибыль", format: fmtNumber },
-    { key: "operating_profit", label: "Опер. прибыль", format: fmtNumber },
+    { key: "direct_costs", label: "Себестоимость / прямые расходы", format: fmtNumber },
+    { key: "gross_profit", label: "Валовая прибыль расчетная", format: fmtNumber },
+    { key: "operating_profit", label: "Операционная прибыль", format: fmtNumber },
+    { key: "finance_income", label: "Финансовые доходы", format: fmtNumber },
+    { key: "finance_costs", label: "Финансовые расходы", format: fmtNumber },
+    { key: "tax", label: "Налог", format: fmtNumber },
     { key: "net_income", label: "Чистая прибыль", format: fmtNumber },
     { key: "assets", label: "Активы", format: fmtNumber },
-    { key: "debt", label: "Долг", format: fmtNumber },
+    { key: "cash", label: "Денежные средства", format: fmtNumber },
+    { key: "receivables", label: "Дебиторская задолженность", format: fmtNumber },
+    { key: "inventories", label: "Запасы", format: fmtNumber },
+    { key: "ppe", label: "Основные средства", format: fmtNumber },
+    { key: "intangibles", label: "Нематериальные активы", format: fmtNumber },
+    { key: "liabilities", label: "Обязательства", format: fmtNumber },
+    { key: "loans", label: "Займы и кредиты", format: fmtNumber },
+    { key: "debt", label: "Итого долг", format: fmtNumber },
     { key: "equity", label: "Капитал", format: fmtNumber },
     { key: "cfo", label: "CFO", format: fmtNumber },
+    { key: "cfi", label: "CFI", format: fmtNumber },
+    { key: "cff", label: "CFF", format: fmtNumber },
     { key: "capex", label: "Capex", format: fmtNumber },
+    { key: "dividends_paid", label: "Дивиденды", format: fmtNumber },
     { key: "fcf", label: "FCF", format: fmtNumber },
   ], a.rows);
 
@@ -429,20 +760,54 @@ function render(a) {
       <p>${item.explanation}</p>
     </article>`).join("");
 
+  renderTable("#qualityChecksTable", [
+    { key: "zone", label: "Зона проверки" },
+    { key: "check", label: "Что проверяется" },
+    { key: "result", label: "Результат по данным Air Astana" },
+  ], a.qualityChecks);
+
+  const directionColumns = [
+    { key: "item", label: "Показатель" },
+    { key: "dynamics", label: "Динамика 2021 -> 2025" },
+    { key: "explanation", label: "Объяснение" },
+  ];
+  renderTable("#incomeAnalysisTable", directionColumns, a.directionRows.income);
+  renderTable("#balanceAnalysisTable", directionColumns, a.directionRows.balance);
+  renderTable("#cashflowAnalysisTable", directionColumns, a.directionRows.cashflow);
+
   renderTable("#ratiosTable", [
     { key: "year", label: "Год" },
     { key: "gross_margin", label: "Валовая маржа*", format: fmtPct },
-    { key: "operating_margin", label: "Опер. маржа", format: fmtPct },
+    { key: "operating_margin", label: "Операционная маржа", format: fmtPct },
     { key: "net_margin", label: "Чистая маржа", format: fmtPct },
     { key: "roa", label: "ROA", format: fmtPct },
     { key: "roe", label: "ROE", format: fmtPct },
-    { key: "debt_assets", label: "Debt/assets", format: fmtPct },
-    { key: "debt_equity", label: "Debt/equity", format: fmtRatio },
+    { key: "current_ratio", label: "Current ratio", format: fmtRatio },
+    { key: "quick_ratio", label: "Quick ratio", format: fmtRatio },
+    { key: "cash_ratio", label: "Cash ratio", format: fmtRatio },
+    { key: "debt_equity", label: "Debt / Equity", format: fmtRatio },
+    { key: "debt_assets", label: "Debt / Assets", format: fmtPct },
+    { key: "net_debt", label: "Net debt", format: fmtNumber },
+    { key: "interest_coverage", label: "Interest coverage", format: fmtRatio },
+    { key: "asset_turnover", label: "Asset turnover", format: fmtRatio },
+    { key: "receivables_turnover", label: "Receivables turnover", format: fmtRatio },
+    { key: "inventory_turnover", label: "Inventory turnover", format: fmtRatio },
     { key: "dso", label: "DSO", format: fmtRatio },
     { key: "dio", label: "DIO", format: fmtRatio },
-    { key: "fuel_revenue", label: "Fuel/revenue", format: fmtPct },
-    { key: "lease_assets", label: "Lease/assets", format: fmtPct },
-    { key: "capex_revenue", label: "Capex/revenue", format: fmtPct },
+    { key: "cfo_net_income", label: "CFO / net income", format: fmtRatio },
+    { key: "fcf", label: "FCF", format: fmtNumber },
+    { key: "fcf_margin", label: "FCF margin", format: fmtPct },
+    { key: "cfo_capex", label: "CFO / Capex", format: fmtRatio },
+  ], a.ratios);
+
+  renderTable("#industryMetricsTable", [
+    { key: "year", label: "Год" },
+    { key: "fuel_revenue", label: "Fuel costs / revenue", format: fmtPct },
+    { key: "lease_assets", label: "Lease liabilities / assets", format: fmtPct },
+    { key: "opex_revenue", label: "Operating expenses / revenue", format: fmtPct },
+    { key: "passenger_share", label: "Пассажирская выручка / общая выручка", format: fmtPct },
+    { key: "capex_revenue", label: "Capex / revenue", format: fmtPct },
+    { key: "ppe_assets", label: "Fleet-related assets: PPE / assets", format: fmtPct },
   ], a.ratios);
 
   document.querySelector("#assumptions").innerHTML = Object.entries(a.forecast.assumptions).map(([name, values]) => `
@@ -456,17 +821,28 @@ function render(a) {
       </dl>
     </article>`).join("");
 
+  renderTable("#assumptionsTable", [
+    { key: "metric", label: "Показатель" },
+    { key: "historical", label: "Истор. тренд / 2025" },
+    { key: "base", label: "Base case" },
+    { key: "stress", label: "Stress case" },
+    { key: "rationale", label: "Обоснование" },
+  ], a.forecast.assumptionRows);
+
   renderTable("#forecastTable", [
     { key: "scenario", label: "Сценарий" },
     { key: "year", label: "Год" },
     { key: "revenue", label: "Выручка", format: fmtNumber },
     { key: "operating_profit", label: "Опер. прибыль", format: fmtNumber },
     { key: "net_income", label: "Чистая прибыль", format: fmtNumber },
+    { key: "assets", label: "Активы", format: fmtNumber },
     { key: "debt", label: "Долг", format: fmtNumber },
+    { key: "equity", label: "Капитал", format: fmtNumber },
+    { key: "cfo", label: "CFO", format: fmtNumber },
     { key: "fcf", label: "FCF", format: fmtNumber },
     { key: "roa", label: "ROA", format: fmtPct },
     { key: "roe", label: "ROE", format: fmtPct },
-    { key: "debt_equity", label: "Debt/equity", format: fmtRatio },
+    { key: "debt_equity", label: "Долговая нагрузка: Debt/equity", format: fmtRatio },
   ], a.forecast.scenarios);
 
   document.querySelector("#summaryList").innerHTML = a.summary.map((x) => `<li>${x}</li>`).join("");
